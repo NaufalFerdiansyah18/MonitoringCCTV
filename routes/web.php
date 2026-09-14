@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\CameraController;
 use App\Http\Controllers\CctvTestController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DvrController;
 use App\Http\Controllers\TechnicalGroupController;
+use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,5 +27,8 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role.superadmin')->prefix('admin')->name('admin.')->group(function () {
         Route::resource('users', UserController::class)->except(['show']);
         Route::resource('technical-groups', TechnicalGroupController::class)->except(['show']);
+        Route::resource('units', UnitController::class)->except(['show']);
+        Route::resource('dvrs', DvrController::class)->except(['show']);
+        Route::resource('dvrs.cameras', CameraController::class)->except(['show']);
     });
 });

@@ -181,6 +181,21 @@
                             </svg>
                             Grup Teknis
                         </a>
+
+                        <div class="nav-label">Master Data</div>
+                        <a class="nav-item {{ request()->routeIs('admin.units.*') ? 'active' : '' }}" href="{{ route('admin.units.index') }}">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                            </svg>
+                            Unit
+                        </a>
+                        <a class="nav-item {{ request()->routeIs('admin.dvrs*') ? 'active' : '' }}" href="{{ route('admin.dvrs.index') }}">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="7" width="20" height="10" rx="2"/><path d="M8 7v10M16 7v10"/>
+                            </svg>
+                            DVR
+                        </a>
                     @endif
                 </nav>
 
