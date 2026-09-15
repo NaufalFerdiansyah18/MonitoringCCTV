@@ -5,6 +5,7 @@ use App\Http\Controllers\CameraController;
 use App\Http\Controllers\CctvTestController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DvrController;
+use App\Http\Controllers\LiveviewController;
 use App\Http\Controllers\TechnicalGroupController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
@@ -23,6 +24,10 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::post('/liveview/start', [LiveviewController::class, 'start'])->name('liveview.start');
+    Route::post('/liveview/stop', [LiveviewController::class, 'stop'])->name('liveview.stop');
+    Route::get('/liveview/status', [LiveviewController::class, 'status'])->name('liveview.status');
 
     Route::middleware('role.superadmin')->prefix('admin')->name('admin.')->group(function () {
         Route::resource('users', UserController::class)->except(['show']);
