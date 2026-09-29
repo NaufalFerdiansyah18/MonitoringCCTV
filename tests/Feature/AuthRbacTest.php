@@ -173,12 +173,12 @@ class AuthRbacTest extends TestCase
         $this->actingAs($admin)
             ->post(route('admin.technical-groups.store'), [
                 'nama' => 'tanaman',
-                'kategoris' => ['kebun', 'ro'],
+                'kategoris' => ['kebun'],
             ])
             ->assertRedirect(route('admin.technical-groups.index'));
 
         $group = TechnicalGroup::where('nama', 'tanaman')->firstOrFail();
-        $this->assertSame(['kebun', 'ro'], $group->allowedUnitCategories()->all());
+        $this->assertSame(['kebun'], $group->allowedUnitCategories()->all());
 
         $this->actingAs($admin)
             ->put(route('admin.technical-groups.update', $group), [

@@ -67,6 +67,7 @@ class CctvTestController extends Controller
             $ffmpeg,
             '-hide_banner', '-loglevel', 'warning',
             '-rtsp_transport', 'tcp',
+            '-timeout', '10000000',
             '-use_wallclock_as_timestamps', '1',
             '-i', $rtspUrl,
             '-map', '0:v:0',
@@ -77,7 +78,7 @@ class CctvTestController extends Controller
             '-b:v', '2500k', '-maxrate', '3000k', '-bufsize', '6000k',
             '-c:a', 'aac', '-b:a', '128k',
             '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
-            '-hls_flags', 'temp_file+delete_segments+independent_segments',
+            '-hls_flags', 'delete_segments+independent_segments',
             '-hls_segment_filename', $segment,
             $playlist,
         ];

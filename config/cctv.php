@@ -28,6 +28,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Subtype Stream Grid (Liveview)
+    |--------------------------------------------------------------------------
+    |
+    | Subtype yang dipakai tile grid di liveview (default substream agar beban
+    | lebih ringan). Fullscreen/rekaman/probing tetap memakai 'subtype' di atas.
+    |
+    */
+
+    'grid_subtype' => env('CCTV_GRID_SUBTYPE', 1),
+
+    /*
+    |--------------------------------------------------------------------------
     | Batas Streaming Bersamaan
     |--------------------------------------------------------------------------
     |

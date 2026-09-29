@@ -54,6 +54,102 @@
 
         .nav-icon { width: 18px; height: 18px; opacity: .8; }
 
+        /* Nav Dropdown */
+        .nav-dropdown {
+            display: flex;
+            flex-direction: column;
+        }
+        .nav-dropdown-trigger {
+            display: flex;
+            align-items: center;
+        }
+        .nav-dropdown-trigger .nav-item {
+            flex: 1;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        .nav-arrow-btn {
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 10px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0 8px 8px 0;
+            transition: all .15s;
+        }
+        .nav-arrow-btn:hover {
+            background: #1f2937;
+            color: #fff;
+        }
+        .nav-arrow-icon {
+            width: 14px;
+            height: 14px;
+            transition: transform .2s ease;
+        }
+        .nav-dropdown.open .nav-arrow-icon {
+            transform: rotate(180deg);
+        }
+        .nav-dropdown-menu {
+            display: none;
+            flex-direction: column;
+            padding: 4px 0 6px 14px;
+            gap: 2px;
+        }
+        .nav-dropdown.open .nav-dropdown-menu {
+            display: flex;
+        }
+        .nav-sub-divider {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+            padding: 6px 10px 2px;
+        }
+        .nav-subitem {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #9ca3af;
+            text-decoration: none;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: all .12s;
+        }
+        .nav-subitem:hover {
+            background: #1f2937;
+            color: #fff;
+        }
+        .nav-subitem.active {
+            background: #2563eb;
+            color: #fff;
+            font-weight: 600;
+        }
+        .nav-subitem-bullet {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4b5563;
+        }
+        .nav-subitem.active .nav-subitem-bullet {
+            background: #93c5fd;
+        }
+        .nav-subitem-badge {
+            font-size: 10px;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: #1f2937;
+            color: #9ca3af;
+            margin-left: auto;
+        }
+        .nav-subitem.active .nav-subitem-badge {
+            background: #1d4ed8;
+            color: #eff6ff;
+        }
+
         .sidebar-footer {
             padding: 16px 14px;
             border-top: 1px solid #1f2937;
@@ -100,6 +196,16 @@
         .badge-superadmin { background: #ede9fe; color: #6d28d9; }
         .badge-teknis { background: #e0f2fe; color: #0369a1; }
         .badge-kategori { background: #f3f4f6; color: #374151; }
+        .badge-online { background: #d1fae5; color: #047857; }
+        .badge-offline { background: #fee2e2; color: #b91c1c; }
+        .badge-recording { background: #dcfce7; color: #15803d; }
+        .badge-stopped { background: #f3f4f6; color: #4b5563; }
+        .badge-failed { background: #fee2e2; color: #b91c1c; }
+        .badge-unseen { background: #fef3c7; color: #92400e; }
+        .nav-badge {
+            margin-left: auto; background: #ef4444; color: #fff;
+            font-size: 11px; border-radius: 999px; padding: 2px 7px; font-weight: 700;
+        }
 
         label { display: block; font-size: 13px; color: #374151; margin-bottom: 6px; font-weight: 600; }
         .form-group { margin-bottom: 16px; }
@@ -166,8 +272,24 @@
                         Dashboard
                     </a>
 
+                    <a class="nav-item {{ request()->routeIs('recordings.*') ? 'active' : '' }}" href="{{ route('recordings.index') }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Rekaman
+                    </a>
+
                     @if (auth()->user()->isSuperadmin())
                         <div class="nav-label">Manajemen</div>
+                        <a class="nav-item {{ request()->routeIs('admin.alarms.*') ? 'active' : '' }}" href="{{ route('admin.alarms.index') }}">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10.5 20a2 2 0 0 0 3 0"/>
+                            </svg>
+                            Alarm
+                            @if ($unseenAlarmCount > 0)
+                                <span class="nav-badge">{{ $unseenAlarmCount }}</span>
+                            @endif
+                        </a>
                         <a class="nav-item {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}">
                             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>
@@ -190,12 +312,49 @@
                             </svg>
                             Unit
                         </a>
-                        <a class="nav-item {{ request()->routeIs('admin.dvrs*') ? 'active' : '' }}" href="{{ route('admin.dvrs.index') }}">
-                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="2" y="7" width="20" height="10" rx="2"/><path d="M8 7v10M16 7v10"/>
-                            </svg>
-                            DVR
-                        </a>
+                        <div class="nav-dropdown {{ (request()->routeIs('admin.dvrs*') || (request()->routeIs('dashboard') && request()->filled('dvr'))) ? 'open' : '' }}" id="nav-dvr-dropdown">
+                            <div class="nav-dropdown-trigger">
+                                <a class="nav-item {{ (request()->routeIs('admin.dvrs.index') && !request()->routeIs('dashboard')) ? 'active' : '' }}" href="{{ route('admin.dvrs.index') }}">
+                                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="2" y="7" width="20" height="10" rx="2"/><path d="M8 7v10M16 7v10"/>
+                                    </svg>
+                                    DVR
+                                </a>
+                                <button type="button" class="nav-arrow-btn" onclick="toggleNavDropdown('nav-dvr-dropdown', event)" title="Buka/Tutup Submenu DVR">
+                                    <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="nav-dropdown-menu">
+                                <a class="nav-subitem {{ (request()->routeIs('admin.dvrs.index') && !request()->routeIs('dashboard')) ? 'active' : '' }}" href="{{ route('admin.dvrs.index') }}">
+                                    <span>📋 Kelola Data DVR</span>
+                                </a>
+                                @if (isset($sidebarDvrs) && $sidebarDvrs->isNotEmpty())
+                                    <div class="nav-sub-divider">Liveview DVR:</div>
+                                    @foreach ($sidebarDvrs as $d)
+                                        <a class="nav-subitem {{ (request()->routeIs('dashboard') && request()->query('dvr') == $d->id) ? 'active' : '' }}"
+                                           href="{{ route('dashboard', ['dvr' => $d->id]) }}"
+                                           title="Streaming DVR {{ $d->nama }} ({{ $d->cameras_count }} kamera)">
+                                            <span class="nav-subitem-bullet"></span>
+                                            <span class="nav-subitem-text">{{ $d->nama }}</span>
+                                            <span class="nav-subitem-badge">{{ $d->cameras_count }} ch</span>
+                                        </a>
+                                    @endforeach
+                                @endif
+                            </div>
+                        </div>
+                    @else
+                        @if (isset($sidebarDvrs) && $sidebarDvrs->isNotEmpty())
+                            <div class="nav-label">Liveview DVR</div>
+                            @foreach ($sidebarDvrs as $d)
+                                <a class="nav-item {{ (request()->routeIs('dashboard') && request()->query('dvr') == $d->id) ? 'active' : '' }}" href="{{ route('dashboard', ['dvr' => $d->id]) }}">
+                                    <span class="nav-subitem-bullet"></span>
+                                    <span class="nav-subitem-text">{{ $d->nama }}</span>
+                                    <span class="badge" style="margin-left:auto; font-size:10px; background:#1f2937; color:#9ca3af;">{{ $d->cameras_count }} ch</span>
+                                </a>
+                            @endforeach
+                        @endif
                     @endif
                 </nav>
 
@@ -229,6 +388,18 @@
             </main>
         </div>
     @endauth
+    <script>
+        function toggleNavDropdown(id, e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            var el = document.getElementById(id);
+            if (el) {
+                el.classList.toggle('open');
+            }
+        }
+    </script>
     @stack('scripts')
 </body>
 </html>

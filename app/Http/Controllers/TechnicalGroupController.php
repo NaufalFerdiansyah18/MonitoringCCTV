@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\TechnicalGroup;
-use App\Models\Unit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -11,6 +10,8 @@ use Illuminate\View\View;
 
 class TechnicalGroupController extends Controller
 {
+    private const TEKNIS_KATEGORI = ['kebun', 'pks'];
+
     public function index(): View
     {
         $groups = TechnicalGroup::withCount('users')->with('unitCategoryRows')->orderBy('nama')->paginate(10);
@@ -20,7 +21,7 @@ class TechnicalGroupController extends Controller
 
     public function create(): View
     {
-        return view('technical-groups.create', ['kategoris' => Unit::KATEGORI]);
+        return view('technical-groups.create', ['kategoris' => self::TEKNIS_KATEGORI]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -38,7 +39,7 @@ class TechnicalGroupController extends Controller
     {
         return view('technical-groups.edit', [
             'group' => $technicalGroup,
-            'kategoris' => Unit::KATEGORI,
+            'kategoris' => self::TEKNIS_KATEGORI,
         ]);
     }
 
@@ -63,11 +64,14 @@ class TechnicalGroupController extends Controller
 
     private function validateGroup(Request $request, ?TechnicalGroup $group = null): array
     {
-        return $request->validate([
-            'nama' => ['required', 'string', 'max:255', Rule::unique('technical_groups', 'nama')->ignore($group?->id)],
-            'kategoris' => ['nullable', 'array'],
-            'kategoris.*' => ['distinct', Rule::in(Unit::KATEGORI)],
-        ]);
+        return $request->validate(
+            [
+                'nama' => ['required', 'string', 'max:255', Rule::unique('technical_groups', 'nama')->ignore($group?->id)],
+                'kategoris' => ['nullable', 'array'],
+                'kategoris.*' => ['distinct', Rule::in(self::TEKNIS_KATEGORI)],
+            ],
+            ['kategoris.*' => 'Unit kategori RO hanya untuk superadmin.']
+        );
     }
 
     private function syncCategories(TechnicalGroup $group, array $kategoris): void

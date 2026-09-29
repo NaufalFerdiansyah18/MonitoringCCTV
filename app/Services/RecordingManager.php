@@ -3,41 +3,30 @@
 namespace App\Services;
 
 use App\Models\Camera;
+use App\Models\Recording;
+use Illuminate\Database\Eloquent\Collection;
 
-class StreamManager
+class RecordingManager
 {
     public const STREAM_KEY_PATTERN = '/^[a-z0-9\-_]+$/';
 
     private RtspGenerator $rtspGenerator;
 
-    public function __construct(?RtspGenerator $rtspGenerator = null)
+    private mixed $runner = null;
+
+    public function __construct(?RtspGenerator $rtspGenerator = null, ?callable $runner = null)
     {
         $this->rtspGenerator = $rtspGenerator ?? new RtspGenerator;
-    }
-
-    public function streamKeyFor(Camera $camera): string
-    {
-        return 'cam-'.$camera->id;
-    }
-
-    protected function rtspUrl(Camera $camera, int $subtype, string $mode): ?string
-    {
-        return $this->rtspGenerator->generateForMode(
-            $camera->dvr,
-            $camera->channel,
-            $subtype,
-            $mode,
-        );
+        $this->runner = $runner;
     }
 
     /**
-     * Mulai satu stream per kamera. Menolak (tanpa overwrite stream berjalan)
-     * bila batas MAX_CONCURRENT_STREAMS sudah tercapai.
+     * Mulai/kontinu rekaman satu kamera. Rekaman yang masih berjalan untuk
+     * kamera yang sama dihentikan dulu (perilaku "mulai ulang").
      *
-     * @param  int|null  $subtype  Override subtype stream; null = pakai config('cctv.subtype').
-     * @return array{ok: bool, streamKey?: string, error?: string}
+     * @return array{ok: bool, recordingId?: int, streamKey?: string, error?: string}
      */
-    public function start(Camera $camera, string $mode, ?int $subtype = null): array
+    public function start(Camera $camera, string $mode = 'local'): array
     {
         $dvr = $camera->dvr;
 
@@ -48,48 +37,50 @@ class StreamManager
             ];
         }
 
-        if ($this->runningCount() >= $this->maxConcurrentStreams()) {
-            $limit = $this->maxConcurrentStreams();
-
-            return [
-                'ok' => false,
-                'error' => 'Batas stream bersamaan tercapai ('.$limit.'). Hentikan sebagian stream dulu.',
-            ];
+        $active = $this->activeRecordingFor($camera);
+        if ($active !== null) {
+            $this->stop($active->id);
         }
 
-        $rtspUrl = $this->rtspUrl($camera, $subtype ?? (int) config('cctv.subtype'), $mode);
+        $recording = Recording::create([
+            'camera_id' => $camera->id,
+            'started_at' => now(),
+            'status' => 'recording',
+        ]);
+
+        $streamKey = 'rec-'.$recording->id;
+        if (! preg_match(self::STREAM_KEY_PATTERN, $streamKey)) {
+            $recording->update(['status' => 'failed', 'ended_at' => now()]);
+
+            return ['ok' => false, 'error' => 'Stream key rekaman tidak valid.'];
+        }
+
+        $rtspUrl = $this->rtspGenerator->generateForMode(
+            $dvr,
+            $camera->channel,
+            (int) config('cctv.subtype'),
+            $mode,
+        );
 
         if ($rtspUrl === null) {
+            $recording->update(['status' => 'failed', 'ended_at' => now()]);
+
             return ['ok' => false, 'error' => 'Tidak dapat membangkitkan URL stream untuk mode '.$mode.'.'];
         }
 
-        $streamKey = $this->streamKeyFor($camera);
-        if (! preg_match(self::STREAM_KEY_PATTERN, $streamKey)) {
-            return ['ok' => false, 'error' => 'Stream key tidak valid.'];
-        }
-
-        if ($this->isRunning($streamKey)) {
-            $this->stop($streamKey);
-        }
-
-        // Hentikan proses test stream cctv-test jika masih jalan agar tidak memblokir channel DVR.
-        $testPidFile = storage_path('app'.DIRECTORY_SEPARATOR.'cctv.pid');
-        if (is_file($testPidFile)) {
-            $testPid = (int) trim((string) @file_get_contents($testPidFile));
-            if ($testPid > 0) {
-                $this->killProcess($testPid);
-            }
-            @unlink($testPidFile);
-        }
-
         $ffmpeg = $this->resolveFfmpegPath();
-        if ($ffmpeg === null) {
+        if ($ffmpeg === null && $this->runner === null) {
+            $recording->update(['status' => 'failed', 'ended_at' => now()]);
+
             return [
                 'ok' => false,
                 'error' => 'FFmpeg tidak ditemukan. Install FFmpeg lalu isi FFMPEG_PATH di .env '
                     .'dengan path lengkap (contoh Windows: "C:\ffmpeg\bin\ffmpeg.exe").',
             ];
         }
+        $ffmpeg ??= (string) config('cctv.ffmpeg_path', 'ffmpeg');
+
+        $recording->update(['stream_key' => $streamKey]);
 
         $this->clearHlsFiles($streamKey);
 
@@ -116,45 +107,74 @@ class StreamManager
             '-g', '30', '-sc_threshold', '0',
             '-b:v', '2500k', '-maxrate', '3000k', '-bufsize', '6000k',
             '-c:a', 'aac', '-b:a', '128k',
-            '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
-            '-hls_flags', 'delete_segments+independent_segments',
+            '-f', 'hls', '-hls_time', '2', '-hls_list_size', '0',
+            '-hls_flags', 'independent_segments',
             '-hls_segment_filename', $segment,
             $playlist,
         ];
 
-        $devNull = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
-        $descriptors = [
-            0 => ['file', $devNull, 'r'],
-            1 => ['file', $logFile, 'a'],
-            2 => ['file', $logFile, 'a'],
-        ];
+        $pid = $this->run($cmd, $logFile, $hlsDir);
+        if ($pid === null) {
+            $recording->update(['status' => 'failed', 'ended_at' => now()]);
 
-        $proc = @proc_open($cmd, $descriptors, $pipes, $hlsDir);
-
-        if (! is_resource($proc)) {
             return [
                 'ok' => false,
                 'error' => 'FFmpeg tidak bisa dijalankan. Pastikan FFMPEG_PATH di .env benar dan FFmpeg sudah terinstall.',
             ];
         }
 
-        $status = proc_get_status($proc);
         $this->ensurePidsDir();
-        file_put_contents($this->pidFile($streamKey), (string) $status['pid']);
+        file_put_contents($this->pidFile($streamKey), (string) $pid);
 
-        return ['ok' => true, 'streamKey' => $streamKey];
+        return ['ok' => true, 'recordingId' => $recording->id, 'streamKey' => $streamKey];
     }
 
     /**
-     * Status stream: connected (PID hidup + playlist segar), starting (PID
-     * hidup tapi playlist belum terbentuk/segar), atau failed.
+     * Hentikan proses rekaman tersebut saja (tidak menyentuh stream liveview),
+     * lalu tutup row rekaman dengan durasi & ukuran dari folder HLS-nya.
+     * Folder HLS sengaja dipertahankan agar tetap bisa diputar ulang.
      */
-    public function status(string $streamKey): string
+    public function stop(int $recordingId): void
     {
-        if (! preg_match(self::STREAM_KEY_PATTERN, $streamKey)) {
+        $recording = Recording::find($recordingId);
+        if ($recording === null) {
+            return;
+        }
+
+        $streamKey = $recording->stream_key;
+        if ($streamKey !== null && preg_match(self::STREAM_KEY_PATTERN, $streamKey)) {
+            $this->killProcess($this->readPid($streamKey));
+            @unlink($this->pidFile($streamKey));
+        }
+
+        $duration = $recording->started_at !== null
+            ? (int) $recording->started_at->diffInSeconds(now())
+            : null;
+
+        $size = $streamKey !== null
+            ? $this->directorySize($this->hlsDir($streamKey))
+            : null;
+
+        $recording->update([
+            'status' => 'stopped',
+            'ended_at' => now(),
+            'duration_seconds' => $duration,
+            'size_bytes' => $size,
+        ]);
+    }
+
+    /**
+     * Status rekaman mengikuti pola StreamManager: connected (proses hidup +
+     * playlist segar), starting, atau failed.
+     */
+    public function status(int $recordingId): string
+    {
+        $recording = Recording::find($recordingId);
+        if ($recording === null || $recording->stream_key === null) {
             return 'failed';
         }
 
+        $streamKey = $recording->stream_key;
         $running = $this->isRunning($streamKey);
         $playlist = $this->hlsDir($streamKey).DIRECTORY_SEPARATOR.'index.m3u8';
         $playlistFresh = is_file($playlist) && (time() - (int) filemtime($playlist)) < 10;
@@ -170,46 +190,32 @@ class StreamManager
         return 'failed';
     }
 
-    /**
-     * Bunuh proses stream yang dimaksud saja, lalu bersihkan PID dan folder HLS-nya.
-     */
-    public function stop(string $streamKey): void
+    public function isRecording(int $recordingId): bool
     {
-        if (! preg_match(self::STREAM_KEY_PATTERN, $streamKey)) {
-            return;
-        }
-
-        $pid = $this->readPid($streamKey);
-        if ($pid > 0) {
-            $this->killProcess($pid);
-        }
-
-        @unlink($this->pidFile($streamKey));
-        $this->clearHlsFiles($streamKey);
+        return in_array($this->status($recordingId), ['connected', 'starting'], true);
     }
 
-    /**
-     * Jumlah proses stream yang masih hidup (dari file PID). File PID basi dibersihkan.
-     */
-    public function runningCount(): int
+    public function activeRecordingFor(Camera $camera): ?Recording
     {
-        $count = 0;
-
-        foreach (glob($this->pidsDir().DIRECTORY_SEPARATOR.'*.pid') ?: [] as $file) {
-            $pid = (int) trim((string) @file_get_contents($file));
-            if ($pid > 0 && $this->isProcessAlive($pid)) {
-                $count++;
-            } else {
-                @unlink($file);
-            }
-        }
-
-        return $count;
+        return $camera->recordings()
+            ->where('status', 'recording')
+            ->latest('started_at')
+            ->first();
     }
 
-    public function error(string $streamKey): string
+    public function recordingsFor(Camera $camera): Collection
     {
-        $logFile = storage_path('logs').DIRECTORY_SEPARATOR.'cctv-'.$streamKey.'.log';
+        return $camera->recordings()->latest('started_at')->get();
+    }
+
+    public function error(int $recordingId): string
+    {
+        $recording = Recording::find($recordingId);
+        if ($recording?->stream_key === null) {
+            return '';
+        }
+
+        $logFile = storage_path('logs').DIRECTORY_SEPARATOR.'cctv-'.$recording->stream_key.'.log';
         if (! is_file($logFile)) {
             return '';
         }
@@ -224,18 +230,32 @@ class StreamManager
         return 'Detail FFmpeg (log terakhir):'."\n".$this->redactCredentials($out);
     }
 
-    /**
-     * Sembunyikan kredensial (rtsp://user:pass@...) dari log FFmpeg sebelum
-     * dikirim ke client, agar password DVR tidak pernah bocor ke frontend.
-     */
+    private function run(array $cmd, string $logFile, string $cwd): ?int
+    {
+        if ($this->runner !== null) {
+            return (int) ($this->runner)($cmd);
+        }
+
+        $devNull = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
+        $descriptors = [
+            0 => ['file', $devNull, 'r'],
+            1 => ['file', $logFile, 'a'],
+            2 => ['file', $logFile, 'a'],
+        ];
+
+        $proc = @proc_open($cmd, $descriptors, $pipes, $cwd);
+        if (! is_resource($proc)) {
+            return null;
+        }
+
+        $status = proc_get_status($proc);
+
+        return $status['pid'] > 0 ? $status['pid'] : null;
+    }
+
     private function redactCredentials(string $text): string
     {
         return preg_replace('#rtsp://[^@\s]+@#', 'rtsp://***@', $text) ?? $text;
-    }
-
-    private function maxConcurrentStreams(): int
-    {
-        return (int) config('cctv.max_concurrent_streams', 8);
     }
 
     private function isRunning(string $streamKey): bool
@@ -272,6 +292,10 @@ class StreamManager
 
     private function killProcess(int $pid): void
     {
+        if ($pid <= 0) {
+            return;
+        }
+
         if (PHP_OS_FAMILY === 'Windows') {
             exec($this->windowsTool('taskkill').' /PID '.$pid.' /T /F', $output);
         } else {
@@ -352,5 +376,21 @@ class StreamManager
         }
 
         @rmdir($dir);
+    }
+
+    private function directorySize(string $dir): ?int
+    {
+        if (! is_dir($dir)) {
+            return null;
+        }
+
+        $total = 0;
+        foreach (glob($dir.DIRECTORY_SEPARATOR.'*') ?: [] as $file) {
+            if (is_file($file)) {
+                $total += (int) filesize($file);
+            }
+        }
+
+        return $total;
     }
 }

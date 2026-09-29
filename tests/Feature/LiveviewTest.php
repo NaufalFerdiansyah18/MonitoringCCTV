@@ -211,4 +211,21 @@ class LiveviewTest extends TestCase
         $this->assertDirectoryDoesNotExist($hlsDir);
         $this->assertFileDoesNotExist($pidsDir.DIRECTORY_SEPARATOR.$streamKey.'.pid');
     }
+
+    public function test_dashboard_filters_by_specific_dvr(): void
+    {
+        $admin = User::factory()->superadmin()->create();
+        $unit = Unit::factory()->create(['kategori' => 'kebun', 'nama' => 'Kebun Satu']);
+        $dvr1 = Dvr::factory()->for($unit, 'unit')->create(['nama' => 'DVR Satu']);
+        $dvr2 = Dvr::factory()->for($unit, 'unit')->create(['nama' => 'DVR Dua']);
+        Camera::factory()->for($dvr1, 'dvr')->forChannel(1)->create(['nama_lokasi' => 'Kamera Satu']);
+        Camera::factory()->for($dvr2, 'dvr')->forChannel(1)->create(['nama_lokasi' => 'Kamera Dua']);
+
+        $this->actingAs($admin)
+            ->get(route('dashboard', ['dvr' => $dvr1->id]))
+            ->assertOk()
+            ->assertSee('DVR Satu')
+            ->assertSee('Kamera Satu')
+            ->assertDontSee('Kamera Dua');
+    }
 }

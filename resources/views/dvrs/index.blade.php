@@ -55,6 +55,7 @@
                             </td>
                             <td>{{ $dvr->cameras_count ?? $dvr->cameras->count() }}</td>
                             <td>
+                                <a class="btn btn-primary btn-xs" href="{{ route('dashboard', ['dvr' => $dvr->id]) }}" title="Streaming Langsung DVR ini">Liveview</a>
                                 <a class="btn btn-secondary btn-xs" href="{{ route('admin.dvrs.cameras.index', $dvr) }}">Kamera</a>
                                 <a class="btn btn-secondary btn-xs" href="{{ route('admin.dvrs.edit', $dvr) }}">Edit</a>
                                 <form method="POST" action="{{ route('admin.dvrs.destroy', $dvr) }}" style="display:inline;"

@@ -21,12 +21,17 @@ class LiveviewController extends Controller
         $validated = $request->validate([
             'camera_id' => ['required', 'integer'],
             'mode' => ['required', 'in:local,public'],
+            'subtype' => ['nullable', 'integer', 'in:0,1'],
         ]);
 
         $camera = Camera::with('dvr.unit')->find($validated['camera_id']);
         $this->authorizeUnit($camera?->dvr?->unit);
 
-        $result = $this->streams->start($camera, $validated['mode']);
+        $subtype = isset($validated['subtype'])
+            ? (int) $validated['subtype']
+            : (int) config('cctv.grid_subtype', 1);
+
+        $result = $this->streams->start($camera, $validated['mode'], $subtype);
 
         return response()->json($result);
     }
