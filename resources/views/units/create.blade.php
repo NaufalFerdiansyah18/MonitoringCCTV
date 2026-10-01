@@ -27,7 +27,7 @@
             <label for="kategori">Kategori</label>
             <select id="kategori" name="kategori" required>
                 @foreach (\App\Models\Unit::KATEGORI as $kategori)
-                    <option value="{{ $kategori }}" @selected(old('kategori') === $kategori)>{{ ucfirst($kategori) }}</option>
+                    <option value="{{ $kategori }}" @selected(old('kategori') === $kategori)>{{ in_array($kategori, ['ro', 'pks']) ? strtoupper($kategori) : ucfirst($kategori) }}</option>
                 @endforeach
             </select>
             @error('kategori') <div class="error-text">{{ $message }}</div> @enderror

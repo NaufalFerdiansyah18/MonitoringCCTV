@@ -31,46 +31,40 @@ class CctvConfirmationTest extends TestCase
         ]);
     }
 
-    public function test_teknis_group_cannot_use_ro_category(): void
+    public function test_teknis_group_can_use_ro_category(): void
     {
         $admin = $this->admin();
 
         $this->actingAs($admin)
-            ->from(route('admin.technical-groups.create'))
             ->post(route('admin.technical-groups.store'), ['nama' => 'grup-ro', 'kategoris' => ['ro']])
-            ->assertSessionHasErrors('kategoris.0');
-
-        $this->assertDatabaseMissing('technical_groups', ['nama' => 'grup-ro']);
-
-        $this->actingAs($admin)
-            ->post(route('admin.technical-groups.store'), ['nama' => 'grup-bagus', 'kategoris' => ['kebun', 'pks']])
             ->assertRedirect(route('admin.technical-groups.index'));
 
-        $group = TechnicalGroup::where('nama', 'grup-bagus')->firstOrFail();
+        $this->assertDatabaseHas('technical_groups', ['nama' => 'grup-ro']);
+        $group = TechnicalGroup::where('nama', 'grup-ro')->firstOrFail();
+        $this->assertSame(['ro'], $group->allowedUnitCategories()->all());
 
         $this->actingAs($admin)
-            ->put(route('admin.technical-groups.update', $group), ['nama' => 'grup-bagus', 'kategoris' => ['ro']])
-            ->assertSessionHasErrors('kategoris.0');
+            ->put(route('admin.technical-groups.update', $group), ['nama' => 'grup-ro', 'kategoris' => ['kebun', 'ro']])
+            ->assertRedirect(route('admin.technical-groups.index'));
 
         $group->refresh();
-        $this->assertSame(['kebun', 'pks'], $group->allowedUnitCategories()->all());
+        $this->assertSame(['kebun', 'ro'], $group->allowedUnitCategories()->all());
     }
 
-    public function test_group_form_hides_ro_category(): void
+    public function test_group_form_shows_ro_category(): void
     {
         $this->actingAs($this->admin())
             ->get(route('admin.technical-groups.create'))
             ->assertOk()
             ->assertSee('Kebun')
-            ->assertSee('Pks')
-            ->assertDontSee('value="ro"');
+            ->assertSee('value="ro"', false);
     }
 
     public function test_superadmin_still_has_ro_in_allowed_categories(): void
     {
         $admin = $this->admin();
 
-        $this->assertSame(['kebun', 'pks', 'ro'], $admin->allowedUnitCategories()->all());
+        $this->assertSame(['kebun', 'pks', 'ro', 'biogas'], $admin->allowedUnitCategories()->all());
     }
 
     public function test_liveview_start_uses_grid_subtype_by_default(): void

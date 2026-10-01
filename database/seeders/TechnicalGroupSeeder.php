@@ -11,6 +11,9 @@ class TechnicalGroupSeeder extends Seeder
     public function run(): void
     {
         $groups = [
+            'kebun' => ['kebun'],
+            'ro' => ['ro'],
+            'biogas' => ['biogas'],
             'tanaman' => ['kebun'],
             'tekpol' => ['pks'],
         ];

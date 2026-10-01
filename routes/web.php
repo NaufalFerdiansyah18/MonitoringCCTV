@@ -14,7 +14,12 @@ use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [CctvTestController::class, 'index']);
+Route::get('/', function () {
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('login');
+});
+Route::get('/cctv-test', [CctvTestController::class, 'index']);
 Route::post('/cctv/test', [CctvTestController::class, 'start']);
 Route::get('/cctv/status', [CctvTestController::class, 'status']);
 Route::post('/cctv/stop', [CctvTestController::class, 'stop']);

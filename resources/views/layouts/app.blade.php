@@ -328,10 +328,10 @@
                             </div>
                             <div class="nav-dropdown-menu">
                                 <a class="nav-subitem {{ (request()->routeIs('admin.dvrs.index') && !request()->routeIs('dashboard')) ? 'active' : '' }}" href="{{ route('admin.dvrs.index') }}">
-                                    <span>📋 Kelola Data DVR</span>
+                                    <span>Kelola Data DVR</span>
                                 </a>
                                 @if (isset($sidebarDvrs) && $sidebarDvrs->isNotEmpty())
-                                    <div class="nav-sub-divider">Liveview DVR:</div>
+                                    <div class="nav-sub-divider">Liveview Kamera:</div>
                                     @foreach ($sidebarDvrs as $d)
                                         <a class="nav-subitem {{ (request()->routeIs('dashboard') && request()->query('dvr') == $d->id) ? 'active' : '' }}"
                                            href="{{ route('dashboard', ['dvr' => $d->id]) }}"
@@ -361,7 +361,7 @@
                 <div class="sidebar-footer">
                     <div class="who">
                         <strong>{{ auth()->user()->name }}</strong>
-                        {{ auth()->user()->isSuperadmin() ? 'Superadmin' : 'Teknis' }}
+                        {{ auth()->user()->isSuperadmin() ? 'Superadmin' : (auth()->user()->technicalGroup?->nama ? 'Bagian ' . ucfirst(auth()->user()->technicalGroup->nama) : 'Teknis') }}
                     </div>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf

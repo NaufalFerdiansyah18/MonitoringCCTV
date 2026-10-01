@@ -49,7 +49,7 @@ class AlarmController extends Controller
         Alarm::create([
             'camera_id' => $camera->id,
             'type' => 'manual',
-            'message' => $validated['message'] ?: null,
+            'message' => $validated['message'] ?? null,
             'started_at' => now(),
         ]);
 

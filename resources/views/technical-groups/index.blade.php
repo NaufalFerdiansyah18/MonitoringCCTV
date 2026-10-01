@@ -27,7 +27,7 @@
                             <td>{{ $group->nama }}</td>
                             <td>
                                 @forelse ($group->unitCategoryRows as $kategori)
-                                    <span class="badge badge-kategori">{{ ucfirst($kategori->kategori) }}</span>
+                                    <span class="badge badge-kategori">{{ in_array($kategori->kategori, ['ro', 'pks']) ? strtoupper($kategori->kategori) : ucfirst($kategori->kategori) }}</span>
                                 @empty
                                     <span style="color:#9ca3af;">—</span>
                                 @endforelse

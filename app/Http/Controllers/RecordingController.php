@@ -57,7 +57,7 @@ class RecordingController extends Controller
         return response()->json($this->recordings->start($camera, $validated['mode']));
     }
 
-    public function stop(Request $request): JsonResponse
+    public function stop(Request $request): JsonResponse|\Illuminate\Http\RedirectResponse
     {
         $validated = $request->validate([
             'recording_id' => ['required', 'integer'],
@@ -68,7 +68,11 @@ class RecordingController extends Controller
 
         $this->recordings->stop($recording->id);
 
-        return response()->json(['ok' => true]);
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return back()->with('success', 'Rekaman berhasil dihentikan.');
     }
 
     public function status(Request $request): JsonResponse

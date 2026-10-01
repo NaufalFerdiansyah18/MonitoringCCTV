@@ -179,9 +179,10 @@ class LiveviewTest extends TestCase
     {
         $manager = app(StreamManager::class);
 
+        $before = $manager->runningCount();
         $this->assertSame('failed', $manager->status('cam-999999'));
         $manager->stop('cam-999999');
-        $this->assertSame(0, $manager->runningCount());
+        $this->assertSame($before, $manager->runningCount());
     }
 
     public function test_stop_cleans_pid_file_and_hls_folder(): void

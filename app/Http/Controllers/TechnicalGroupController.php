@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TechnicalGroup;
+use App\Models\Unit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -10,7 +11,7 @@ use Illuminate\View\View;
 
 class TechnicalGroupController extends Controller
 {
-    private const TEKNIS_KATEGORI = ['kebun', 'pks'];
+    private const TEKNIS_KATEGORI = Unit::KATEGORI;
 
     public function index(): View
     {
@@ -64,14 +65,11 @@ class TechnicalGroupController extends Controller
 
     private function validateGroup(Request $request, ?TechnicalGroup $group = null): array
     {
-        return $request->validate(
-            [
-                'nama' => ['required', 'string', 'max:255', Rule::unique('technical_groups', 'nama')->ignore($group?->id)],
-                'kategoris' => ['nullable', 'array'],
-                'kategoris.*' => ['distinct', Rule::in(self::TEKNIS_KATEGORI)],
-            ],
-            ['kategoris.*' => 'Unit kategori RO hanya untuk superadmin.']
-        );
+        return $request->validate([
+            'nama' => ['required', 'string', 'max:255', Rule::unique('technical_groups', 'nama')->ignore($group?->id)],
+            'kategoris' => ['nullable', 'array'],
+            'kategoris.*' => ['distinct', Rule::in(self::TEKNIS_KATEGORI)],
+        ]);
     }
 
     private function syncCategories(TechnicalGroup $group, array $kategoris): void

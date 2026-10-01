@@ -24,7 +24,7 @@
                     <label>
                         <input type="checkbox" name="kategoris[]" value="{{ $kategori }}"
                                @checked(in_array($kategori, old('kategoris', [])))>
-                        {{ ucfirst($kategori) }}
+                        {{ in_array($kategori, ['ro', 'pks']) ? strtoupper($kategori) : ucfirst($kategori) }}
                     </label>
                 @endforeach
             </div>

@@ -27,7 +27,7 @@
                         <tr>
                             <td>{{ $unit->kode }}</td>
                             <td>{{ $unit->nama }}</td>
-                            <td><span class="badge badge-kategori">{{ ucfirst($unit->kategori) }}</span></td>
+                            <td><span class="badge badge-kategori">{{ in_array($unit->kategori, ['ro', 'pks']) ? strtoupper($unit->kategori) : ucfirst($unit->kategori) }}</span></td>
                             <td>{{ $unit->dvrs_count }}</td>
                             <td>
                                 <a class="btn btn-secondary btn-xs" href="{{ route('admin.units.edit', $unit) }}">Edit</a>

@@ -341,4 +341,28 @@ class RecordingTest extends TestCase
         $this->assertDatabaseCount('recordings', 1);
         $this->assertDatabaseHas('recordings', ['id' => $started->id, 'status' => 'recording']);
     }
+
+    public function test_stop_route_redirects_back_for_html_and_returns_json_for_ajax(): void
+    {
+        $admin = User::factory()->superadmin()->create();
+        $unit = Unit::factory()->create();
+        $camera = $this->cameraOn($unit);
+        $recording = Recording::factory()->recording()->create([
+            'camera_id' => $camera->id,
+            'started_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('recordings.index'))
+            ->post(route('recordings.stop'), ['recording_id' => $recording->id])
+            ->assertRedirect(route('recordings.index'))
+            ->assertSessionHas('success');
+
+        $recording->update(['status' => 'recording']);
+
+        $this->actingAs($admin)
+            ->postJson(route('recordings.stop'), ['recording_id' => $recording->id])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+    }
 }
