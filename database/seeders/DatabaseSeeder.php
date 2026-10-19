@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SuperadminSeeder::class,
             TechnicalGroupSeeder::class,
+            UnitSeeder::class,
             UserSeeder::class,
         ]);
     }

@@ -29,8 +29,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'login']);
 });
 
+Route::match(['get', 'post'], '/logout', [LoginController::class, 'logout'])->name('logout');
+
 Route::middleware('auth')->group(function () {
-    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::post('/liveview/start', [LiveviewController::class, 'start'])->name('liveview.start');

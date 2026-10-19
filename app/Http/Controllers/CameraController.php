@@ -21,7 +21,10 @@ class CameraController extends Controller
 
     public function create(Dvr $dvr): View
     {
-        return view('cameras.create', ['dvr' => $dvr->load('unit')]);
+        return view('cameras.create', [
+            'dvr' => $dvr->load('unit'),
+            'usedChannels' => $dvr->cameras()->pluck('channel')->all(),
+        ]);
     }
 
     public function store(Request $request, Dvr $dvr): RedirectResponse
@@ -41,6 +44,7 @@ class CameraController extends Controller
         return view('cameras.edit', [
             'dvr' => $dvr->load('unit'),
             'camera' => $camera,
+            'usedChannels' => $dvr->cameras()->where('id', '!=', $camera->id)->pluck('channel')->all(),
         ]);
     }
 

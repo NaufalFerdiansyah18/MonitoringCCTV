@@ -24,6 +24,7 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
+            $request->session()->put('just_logged_in', true);
 
             return redirect()->intended(route('dashboard'));
         }

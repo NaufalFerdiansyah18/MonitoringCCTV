@@ -10,11 +10,28 @@ use Illuminate\View\View;
 
 class UnitController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $units = Unit::withCount('dvrs')->orderBy('kode')->paginate(10);
+        $query = Unit::withCount('dvrs');
 
-        return view('units.index', ['units' => $units]);
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('kode', 'like', "%{$search}%")
+                  ->orWhere('nama', 'like', "%{$search}%");
+            });
+        }
+
+        if ($kategori = $request->input('kategori')) {
+            $query->where('kategori', $kategori);
+        }
+
+        $units = $query->orderBy('kode')->paginate(10)->withQueryString();
+
+        return view('units.index', [
+            'units' => $units,
+            'search' => $search,
+            'selectedKategori' => $kategori,
+        ]);
     }
 
     public function create(): View

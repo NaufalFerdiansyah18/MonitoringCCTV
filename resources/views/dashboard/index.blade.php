@@ -8,6 +8,8 @@
             <h1 style="margin:0; font-size:22px; font-weight:700;">
                 @if ($selectedDvr)
                     Liveview — DVR {{ $selectedDvr->nama }}
+                @elseif ($selectedUnit)
+                    Liveview CCTV — {{ $selectedUnit->nama }}
                 @else
                     Liveview CCTV
                 @endif
@@ -20,6 +22,11 @@
                 </a>
             @elseif ($selectedUnit)
                 <span class="badge badge-kategori" style="font-size:12px; padding:4px 10px;">{{ ucfirst($selectedUnit->kategori) }}</span>
+                @if ($units->count() > 1)
+                    <a href="{{ route('dashboard', ['select_unit' => 1]) }}" class="btn btn-secondary btn-xs" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px;" title="Lihat semua unit dalam bentuk kartu">
+                        ⊞ Pilih Unit Lain
+                    </a>
+                @endif
             @endif
         </div>
     </div>
@@ -118,17 +125,17 @@
                     </div>
 
                     <div class="lv-actions">
-                        <button id="lv-select-all" class="btn btn-secondary" type="button" title="Pilih atau batalkan semua kamera">
-                            Pilih Semua
-                        </button>
-                        <button id="lv-start" class="btn btn-primary" type="button" style="display:flex; align-items:center; gap:6px;">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                        <span id="lv-active-count" class="badge" style="background:#e5e7eb; color:#374151; font-weight:600; padding:6px 10px; font-size:12px;">
+                            0 Kamera Aktif
+                        </span>
+                        <button id="lv-start-all" class="btn btn-primary" type="button" style="display:flex; align-items:center; gap:6px;" title="Putar semua kamera di unit ini secara otomatis">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M8 5v14l11-7z"/>
                             </svg>
-                            Mulai Streaming
+                            Putar Semua
                         </button>
-                        <button id="lv-stop-all" class="btn btn-secondary btn-danger-tint" type="button" style="display:flex; align-items:center; gap:6px;">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                        <button id="lv-stop-all" class="btn btn-secondary btn-danger-tint" type="button" style="display:flex; align-items:center; gap:6px;" title="Hentikan semua siaran kamera">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M6 6h12v12H6z"/>
                             </svg>
                             Hentikan Semua
@@ -145,10 +152,15 @@
             {{-- Left Panel: Camera List & DVRs --}}
             <div class="lv-sidebar-panel">
                 <div class="lv-sidebar-header">
-                    <h3 style="font-size:14px; font-weight:700; margin:0; color:#111827; display:flex; align-items:center; justify-content:space-between;">
-                        <span>Daftar Kamera</span>
-                        <span id="lv-checked-count" class="badge" style="background:#e5e7eb; color:#374151; font-weight:600;">0 dipilih</span>
-                    </h3>
+                    <div style="display:flex; align-items:center; justify-content:space-between;">
+                        <div>
+                            <h3 style="font-size:14px; font-weight:700; margin:0; color:#111827;">Daftar Kamera</h3>
+                            <p style="font-size:11px; color:#6b7280; margin:2px 0 0;">Klik kamera untuk langsung mulai live streaming</p>
+                        </div>
+                        <span id="lv-channel-total" class="badge" style="background:#f3f4f6; color:#4b5563; font-weight:600;">
+                            {{ $selectedUnit->dvrs->sum(fn ($dvr) => $dvr->cameras->count()) }} total
+                        </span>
+                    </div>
                 </div>
 
                 @if ($selectedUnit->dvrs->isEmpty())
@@ -174,23 +186,41 @@
                                 <div class="lv-cameras">
                                     @foreach ($dvr->cameras as $camera)
                                         <div class="lv-cam-box">
-                                            <label class="lv-cam">
-                                                <input type="checkbox"
-                                                       data-camera-id="{{ $camera->id }}"
-                                                       data-channel="{{ $camera->channel }}"
-                                                       data-name="{{ $camera->nama_lokasi }}"
-                                                       data-dvr="{{ $dvr->nama }}"
-                                                       data-public="{{ $dvr->ip_public ? '1' : '0' }}">
-                                                <span class="lv-cam-label">CH {{ $camera->channel }} — {{ $camera->nama_lokasi }}</span>
-                                                <span class="lv-status-dot {{ $camera->is_online ? 'is-online' : 'is-offline' }}"
-                                                      title="{{ $camera->is_online ? 'Online' : 'Offline' }}"></span>
-                                                @if ($camera->kategori)
-                                                    <span class="badge badge-kategori" style="font-size:10px; padding:2px 6px;">{{ $camera->kategori }}</span>
-                                                @endif
-                                                @if (in_array($camera->id, $recordingCameraIds))
-                                                    <span class="badge badge-recording" style="font-size:10px; padding:2px 6px;">Rec</span>
-                                                @endif
-                                            </label>
+                                            <div class="lv-cam-card"
+                                                 data-camera-id="{{ $camera->id }}"
+                                                 data-channel="{{ $camera->channel }}"
+                                                 data-name="{{ $camera->nama_lokasi }}"
+                                                 data-dvr="{{ $dvr->nama }}"
+                                                 data-public="{{ $dvr->ip_public ? '1' : '0' }}"
+                                                 tabindex="0"
+                                                 role="button"
+                                                 title="Klik untuk langsung memutar siaran kamera ini">
+                                                <div class="lv-cam-card-left">
+                                                    <div class="lv-cam-play-btn" title="Status Pemutaran">
+                                                        <svg class="lv-icon-idle-play" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M8 5v14l11-7z"/>
+                                                        </svg>
+                                                        <span class="lv-pulse-beacon" style="display:none;"></span>
+                                                    </div>
+                                                    <div class="lv-cam-info-wrap">
+                                                        <span class="lv-cam-title">CH {{ $camera->channel }} — {{ $camera->nama_lokasi }}</span>
+                                                        <div class="lv-cam-meta-tags">
+                                                            <span class="lv-status-dot {{ $camera->is_online ? 'is-online' : 'is-offline' }}"
+                                                                  title="{{ $camera->is_online ? 'Online' : 'Offline' }}"></span>
+                                                            <span class="lv-cam-online-label">{{ $camera->is_online ? 'Online' : 'Offline' }}</span>
+                                                            @if ($camera->kategori)
+                                                                <span class="badge badge-kategori" style="font-size:10px; padding:1px 6px;">{{ $camera->kategori }}</span>
+                                                            @endif
+                                                            @if (in_array($camera->id, $recordingCameraIds))
+                                                                <span class="badge badge-recording" style="font-size:10px; padding:1px 6px;">Rec</span>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="lv-cam-badge-state">
+                                                    <span class="lv-stream-pill">Putar</span>
+                                                </div>
+                                            </div>
 
                                             <div class="lv-cam-subactions">
                                                 @if ($camera->can_ptz)
@@ -235,10 +265,13 @@
                     </svg>
                     <h3 style="font-size:16px; font-weight:700; color:#374151; margin-bottom:6px;">Monitor Siaran Kamera CCTV</h3>
                     <p style="font-size:13px; color:#6b7280; max-width:440px; margin:0 auto 16px; line-height:1.5;">
-                        Centang kamera di panel sebelah kiri lalu klik <strong>Mulai Streaming</strong> untuk memantau video secara langsung.
+                        Pilih kamera di panel sebelah kiri untuk langsung memutar siaran secara otomatis tanpa perlu checklist.
                     </p>
-                    <button id="lv-quick-start" class="btn btn-primary" type="button" style="font-size:13px;">
-                        Mulai Semua Kamera
+                    <button id="lv-quick-start" class="btn btn-primary" type="button" style="font-size:13px; display:inline-flex; align-items:center; gap:6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        Putar Semua Kamera Langsung
                     </button>
                 </div>
 
@@ -349,32 +382,128 @@
             background: #f3f4f6;
             border-color: #e5e7eb;
         }
-        .lv-cam {
+        .lv-cam-card {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 13px;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
             cursor: pointer;
-            width: 100%;
-            margin: 0;
-            font-weight: 500;
-            color: #1f2937;
+            user-select: none;
+            transition: all .15s ease-in-out;
         }
-        .lv-cam input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-            accent-color: #2563eb;
+        .lv-cam-card:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
         }
-        .lv-cam.lv-cam-disabled {
+        .lv-cam-card:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 1px;
+        }
+        .lv-cam-card.is-streaming {
+            background: #f0fdf4;
+            border-color: #86efac;
+            box-shadow: 0 0 0 1px #22c55e, 0 2px 6px rgba(34,197,94,0.12);
+        }
+        .lv-cam-card.is-starting {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .lv-cam-card.lv-cam-disabled {
             opacity: .45;
             pointer-events: none;
+            background: #f9fafb;
         }
-        .lv-cam-label {
+        .lv-cam-card-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             flex: 1;
+            min-width: 0;
+        }
+        .lv-cam-play-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all .15s ease;
+        }
+        .lv-cam-card:hover .lv-cam-play-btn {
+            background: #2563eb;
+            color: #fff;
+        }
+        .lv-cam-card.is-streaming .lv-cam-play-btn {
+            background: #22c55e;
+            color: #fff;
+        }
+        .lv-cam-info-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+        .lv-cam-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            display: block;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        .lv-cam-meta-tags {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 3px;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .lv-cam-online-label {
+            font-size: 11px;
+        }
+        .lv-stream-pill {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: #475569;
+            white-space: nowrap;
+            transition: all .15s ease;
+        }
+        .lv-cam-card:hover .lv-stream-pill {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .lv-cam-card.is-streaming .lv-stream-pill {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        .lv-cam-card.is-starting .lv-stream-pill {
+            background: #fef3c7;
+            color: #b45309;
+        }
+        @keyframes lv-pulse-beacon-anim {
+            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 5px rgba(255, 255, 255, 0); }
+            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+        .lv-pulse-beacon {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #fff;
+            display: inline-block;
+            animation: lv-pulse-beacon-anim 1.4s infinite;
         }
         .lv-status-dot {
             width: 8px;
@@ -598,8 +727,9 @@
             const alertEl = document.getElementById('lv-alert');
             const modeEl = document.getElementById('lv-mode');
             const gridSelect = document.getElementById('lv-grid-select');
-            const selectAllBtn = document.getElementById('lv-select-all');
-            const checkedCountBadge = document.getElementById('lv-checked-count');
+            const activeCountBadge = document.getElementById('lv-active-count');
+            const startAllBtn = document.getElementById('lv-start-all');
+            const stopAllBtn = document.getElementById('lv-stop-all');
             const quickStartBtn = document.getElementById('lv-quick-start');
 
             function showAlert(message) {
@@ -611,51 +741,50 @@
                 alertEl.style.display = 'none';
             }
 
-            function updateCheckedCountBadge() {
-                const checked = document.querySelectorAll('.lv-cam:not(.lv-cam-disabled) input[type="checkbox"]:checked');
-                if (checkedCountBadge) {
-                    checkedCountBadge.textContent = checked.length + ' dipilih';
-                    checkedCountBadge.style.background = checked.length > 0 ? '#dbeafe' : '#e5e7eb';
-                    checkedCountBadge.style.color = checked.length > 0 ? '#1d4ed8' : '#374151';
-                }
-                if (selectAllBtn) {
-                    const allBoxes = Array.from(document.querySelectorAll('.lv-cam:not(.lv-cam-disabled) input[type="checkbox"]'));
-                    const allChecked = allBoxes.length > 0 && allBoxes.every(b => b.checked);
-                    selectAllBtn.textContent = allChecked ? 'Batal Pilih' : 'Pilih Semua';
+            function updateActiveCountBadge() {
+                const count = Object.keys(state.streams).length;
+                if (activeCountBadge) {
+                    activeCountBadge.textContent = count + ' Kamera Aktif';
+                    activeCountBadge.style.background = count > 0 ? '#dcfce7' : '#e5e7eb';
+                    activeCountBadge.style.color = count > 0 ? '#15803d' : '#374151';
                 }
             }
 
-            function saveSelectedCameras() {
-                if (!UNIT_ID) return;
-                const checkedIds = Array.from(document.querySelectorAll('.lv-cam input[type="checkbox"]:checked'))
-                    .map(b => b.dataset.cameraId);
-                try {
-                    localStorage.setItem(getStorageKey('checked_cams'), JSON.stringify(checkedIds));
-                } catch (e) {}
+            function resetCameraCard(cameraId) {
+                const card = document.querySelector('.lv-cam-card[data-camera-id="' + cameraId + '"]');
+                if (!card) return;
+
+                card.classList.remove('is-streaming', 'is-starting');
+                const pill = card.querySelector('.lv-stream-pill');
+                if (pill) pill.textContent = 'Putar';
+
+                const playIcon = card.querySelector('.lv-icon-idle-play');
+                const pulse = card.querySelector('.lv-pulse-beacon');
+                if (playIcon) playIcon.style.display = 'inline-block';
+                if (pulse) pulse.style.display = 'none';
             }
 
-            function restoreSelectedCameras() {
-                if (!UNIT_ID) return;
-                try {
-                    const raw = localStorage.getItem(getStorageKey('checked_cams'));
-                    if (raw) {
-                        const ids = JSON.parse(raw);
-                        if (Array.isArray(ids) && ids.length > 0) {
-                            document.querySelectorAll('.lv-cam input[type="checkbox"]').forEach(box => {
-                                if (ids.includes(box.dataset.cameraId)) {
-                                    box.checked = true;
-                                }
-                            });
-                        }
-                    }
-                } catch (e) {}
-                updateCheckedCountBadge();
+            function setCameraCardStreaming(cameraId) {
+                const card = document.querySelector('.lv-cam-card[data-camera-id="' + cameraId + '"]');
+                if (!card) return;
+
+                card.classList.remove('is-starting');
+                card.classList.add('is-streaming');
+                const pill = card.querySelector('.lv-stream-pill');
+                if (pill) pill.textContent = '● LIVE';
+
+                const playIcon = card.querySelector('.lv-icon-idle-play');
+                const pulse = card.querySelector('.lv-pulse-beacon');
+                if (playIcon) playIcon.style.display = 'none';
+                if (pulse) pulse.style.display = 'inline-block';
             }
 
-            function saveStreamingActiveState(isActive) {
+            function saveActiveStreamingState() {
                 if (!UNIT_ID) return;
+                const activeIds = Object.values(state.streams).map(s => s.cameraId).filter(Boolean);
                 try {
-                    localStorage.setItem(getStorageKey('is_streaming'), isActive ? '1' : '0');
+                    localStorage.setItem(getStorageKey('active_cams'), JSON.stringify(activeIds));
+                    localStorage.setItem(getStorageKey('is_streaming'), activeIds.length > 0 ? '1' : '0');
                 } catch (e) {}
             }
 
@@ -692,16 +821,21 @@
 
             function applyModeVisibility() {
                 const isPublic = state.mode === 'public';
-                document.querySelectorAll('.lv-cam').forEach(function (label) {
-                    const box = label.querySelector('input[type="checkbox"]');
-                    if (isPublic && box.dataset.public !== '1') {
-                        box.checked = false;
-                        label.classList.add('lv-cam-disabled');
+                document.querySelectorAll('.lv-cam-card').forEach(function (card) {
+                    if (isPublic && card.dataset.public !== '1') {
+                        card.classList.add('lv-cam-disabled');
+                        card.title = 'Kamera tidak tersedia pada mode Public (DVR belum memiliki IP Public)';
+                        const cId = parseInt(card.dataset.cameraId, 10);
+                        for (const [sKey, s] of Object.entries(state.streams)) {
+                            if (s.cameraId === cId) {
+                                stopStream(sKey);
+                            }
+                        }
                     } else {
-                        label.classList.remove('lv-cam-disabled');
+                        card.classList.remove('lv-cam-disabled');
+                        card.title = 'Klik untuk langsung memutar siaran kamera ini';
                     }
                 });
-                updateCheckedCountBadge();
             }
 
             function updateGridCols() {
@@ -718,8 +852,8 @@
                 let cols = 1;
                 if (count === 2) cols = 2;
                 else if (count === 3) cols = 3;
-                else if (count === 4) cols = 4;
-                else if (count > 4) cols = 8;
+                else if (count === 4) cols = 2;
+                else if (count > 4) cols = 4;
                 gridEl.setAttribute('data-cols', String(cols));
             }
 
@@ -731,7 +865,7 @@
                 stream.statusEl.className = 'lv-status lv-status-' + status;
             }
 
-            function addTile(cameraData, streamKey) {
+            function addTile(cameraData, streamKey, cameraId) {
                 const tile = document.createElement('div');
                 tile.className = 'lv-tile';
 
@@ -819,6 +953,7 @@
                     statusEl: statusEl,
                     poller: null,
                     loaded: false,
+                    cameraId: cameraId,
                 };
                 state.streams[streamKey] = stream;
                 updateGridCols();
@@ -880,113 +1015,149 @@
                     headers: headers,
                     body: JSON.stringify({ stream_key: streamKey }),
                 }).catch(function () {});
+
                 if (stream) {
+                    if (stream.cameraId) {
+                        resetCameraCard(stream.cameraId);
+                    }
                     stream.hls.destroy();
                     stream.tile.remove();
                     delete state.streams[streamKey];
                     updateGridCols();
                 }
-                if (Object.keys(state.streams).length === 0) {
-                    saveStreamingActiveState(false);
-                }
+                updateActiveCountBadge();
+                saveActiveStreamingState();
             }
 
             function stopAllStreams() {
+                try {
+                    sessionStorage.setItem(getStorageKey('user_paused'), '1');
+                } catch (e) {}
                 Object.keys(state.streams).forEach(stopStream);
-                saveStreamingActiveState(false);
+                document.querySelectorAll('.lv-cam-card').forEach(function (card) {
+                    const cId = parseInt(card.dataset.cameraId, 10);
+                    resetCameraCard(cId);
+                });
+                updateActiveCountBadge();
+                saveActiveStreamingState();
             }
 
-            async function startStreams() {
-                const mode = state.mode;
+            async function startSingleStream(card) {
+                const cameraId = parseInt(card.dataset.cameraId, 10);
+                const channel = card.dataset.channel;
+                const name = card.dataset.name;
+                const dvr = card.dataset.dvr;
+
+                // Jika sudah aktif streaming, klik kembali akan menghentikannya (toggle off)
+                for (const [sKey, s] of Object.entries(state.streams)) {
+                    if (s.cameraId === cameraId) {
+                        stopStream(sKey);
+                        return;
+                    }
+                }
+
+                // Cek batas grid monitor
                 const gridLimit = parseInt(gridSelect.value, 10) || 4;
-
-                const selected = Array.prototype.slice.call(
-                    document.querySelectorAll('.lv-cam input[type="checkbox"]:checked')
-                ).slice(0, gridLimit);
-
-                if (selected.length === 0) {
-                    showAlert('Pilih minimal satu kamera.');
+                const currentCount = Object.keys(state.streams).length;
+                if (currentCount >= gridLimit) {
+                    showAlert('Batas tampilan grid (' + gridLimit + ' layar) telah tercapai. Hentikan kamera yang sedang tayang atau ubah pilihan Grid di toolbar.');
                     return;
                 }
 
                 hideAlert();
-                saveSelectedCameras();
-                saveStreamingActiveState(true);
+                card.classList.add('is-starting');
+                const pill = card.querySelector('.lv-stream-pill');
+                if (pill) pill.textContent = 'Menghubungkan...';
 
-                for (const box of selected) {
-                    const cameraData = {
-                        channel: box.dataset.channel,
-                        name: box.dataset.name,
-                        dvr: box.dataset.dvr,
-                    };
-
-                    let response;
-                    try {
-                        response = await fetch(URLS.start, {
-                            method: 'POST',
-                            headers: headers,
-                            body: JSON.stringify({ camera_id: parseInt(box.dataset.cameraId, 10), mode: mode }),
-                        });
-                    } catch (e) {
-                        showAlert('Gagal terhubung ke server.');
-                        break;
-                    }
+                try {
+                    const response = await fetch(URLS.start, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({ camera_id: cameraId, mode: state.mode }),
+                    });
 
                     if (response.status === 403 || response.status === 404) {
                         showAlert('Akses ke kamera ini ditolak.');
-                        break;
+                        resetCameraCard(cameraId);
+                        return;
                     }
 
-                    let data;
-                    try {
-                        data = await response.json();
-                    } catch (e) {
-                        showAlert('Respons server tidak valid.');
-                        break;
-                    }
-
+                    const data = await response.json();
                     if (!data.ok) {
                         showAlert(data.error || 'Stream gagal dimulai.');
-                        break;
+                        resetCameraCard(cameraId);
+                        return;
                     }
+
+                    setCameraCardStreaming(cameraId);
 
                     if (state.streams[data.streamKey]) {
-                        continue;
+                        return;
                     }
 
-                    addTile(cameraData, data.streamKey);
+                    addTile({ channel, name, dvr }, data.streamKey, cameraId);
+                    updateActiveCountBadge();
+                    saveActiveStreamingState();
+                } catch (e) {
+                    showAlert('Gagal terhubung ke server.');
+                    resetCameraCard(cameraId);
                 }
             }
 
-            // Event Listeners
-            if (selectAllBtn) {
-                selectAllBtn.addEventListener('click', function () {
-                    const boxes = Array.from(document.querySelectorAll('.lv-cam:not(.lv-cam-disabled) input[type="checkbox"]'));
-                    const allChecked = boxes.length > 0 && boxes.every(b => b.checked);
-                    boxes.forEach(b => b.checked = !allChecked);
-                    updateCheckedCountBadge();
-                    saveSelectedCameras();
+            async function startAllStreams() {
+                hideAlert();
+                try {
+                    sessionStorage.removeItem(getStorageKey('user_paused'));
+                } catch (e) {}
+                const gridLimit = parseInt(gridSelect.value, 10) || 4;
+                const cards = Array.from(document.querySelectorAll('.lv-cam-card:not(.lv-cam-disabled)'));
+
+                for (const card of cards) {
+                    if (Object.keys(state.streams).length >= gridLimit) {
+                        break;
+                    }
+                    const cId = parseInt(card.dataset.cameraId, 10);
+                    const isRunning = Object.values(state.streams).some(s => s.cameraId === cId);
+                    if (!isRunning && !card.classList.contains('is-starting')) {
+                        await startSingleStream(card);
+                    }
+                }
+            }
+
+            // Event Listeners untuk Interaksi Otomatis Kamera
+            document.querySelectorAll('.lv-cam-card').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    try {
+                        sessionStorage.removeItem(getStorageKey('user_paused'));
+                    } catch (e) {}
+                    startSingleStream(card);
+                });
+                card.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        try {
+                            sessionStorage.removeItem(getStorageKey('user_paused'));
+                        } catch (e) {}
+                        startSingleStream(card);
+                    }
+                });
+            });
+
+            if (startAllBtn) {
+                startAllBtn.addEventListener('click', function () {
+                    startAllStreams();
                 });
             }
 
             if (quickStartBtn) {
                 quickStartBtn.addEventListener('click', function () {
-                    const boxes = Array.from(document.querySelectorAll('.lv-cam:not(.lv-cam-disabled) input[type="checkbox"]'));
-                    boxes.forEach(b => b.checked = true);
-                    updateCheckedCountBadge();
-                    startStreams();
+                    startAllStreams();
                 });
             }
 
-            document.querySelectorAll('.lv-cam input[type="checkbox"]').forEach(box => {
-                box.addEventListener('change', function () {
-                    updateCheckedCountBadge();
-                    saveSelectedCameras();
-                });
-            });
-
-            document.getElementById('lv-start').addEventListener('click', startStreams);
-            document.getElementById('lv-stop-all').addEventListener('click', stopAllStreams);
+            if (stopAllBtn) {
+                stopAllBtn.addEventListener('click', stopAllStreams);
+            }
 
             modeEl.addEventListener('change', function () {
                 state.mode = modeEl.value;
@@ -998,7 +1169,7 @@
             gridSelect.addEventListener('change', function () {
                 state.grid = parseInt(gridSelect.value, 10) || 4;
                 savePreferences();
-                stopAllStreams();
+                updateGridCols();
             });
 
             window.addEventListener('pagehide', function () {
@@ -1016,13 +1187,47 @@
             // Initial Setup
             restorePreferences();
             applyModeVisibility();
-            restoreSelectedCameras();
+            updateActiveCountBadge();
 
-            // Auto-resume streaming if previously active
-            if (isStreamingSavedActive()) {
-                const anyChecked = document.querySelector('.lv-cam:not(.lv-cam-disabled) input[type="checkbox"]:checked');
-                if (anyChecked) {
-                    startStreams();
+            const JUST_LOGGED_IN = @json($justLoggedIn ?? false);
+            if (JUST_LOGGED_IN) {
+                try {
+                    sessionStorage.removeItem(getStorageKey('user_paused'));
+                } catch (e) {}
+            }
+
+            const userPaused = (function () {
+                try {
+                    return sessionStorage.getItem(getStorageKey('user_paused')) === '1';
+                } catch (e) {
+                    return false;
+                }
+            })();
+
+            // Otomatis putar siaran kamera saat halaman dimuat
+            if (!userPaused) {
+                let resumed = false;
+                if (isStreamingSavedActive()) {
+                    try {
+                        const raw = localStorage.getItem(getStorageKey('active_cams'));
+                        if (raw) {
+                            const ids = JSON.parse(raw);
+                            if (Array.isArray(ids) && ids.length > 0) {
+                                ids.forEach(function (id) {
+                                    const card = document.querySelector('.lv-cam-card[data-camera-id="' + id + '"]:not(.lv-cam-disabled)');
+                                    if (card) {
+                                        startSingleStream(card);
+                                        resumed = true;
+                                    }
+                                });
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Jika belum ada kamera yang tersimpan atau baru pertama login, putar semua kamera otomatis
+                if (!resumed) {
+                    startAllStreams();
                 }
             }
         })();

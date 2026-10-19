@@ -10,7 +10,7 @@ class Unit extends Model
 {
     use HasFactory;
 
-    public const KATEGORI = ['kebun', 'pks', 'ro', 'biogas'];
+    public const KATEGORI = ['kebun', 'pks', 'biogas'];
 
     protected $fillable = ['kode', 'nama', 'kategori'];
 

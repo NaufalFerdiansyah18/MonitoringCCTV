@@ -13,9 +13,16 @@ class TechnicalGroupController extends Controller
 {
     private const TEKNIS_KATEGORI = Unit::KATEGORI;
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        $groups = TechnicalGroup::withCount('users')->with('unitCategoryRows')->orderBy('nama')->paginate(10);
+        $query = TechnicalGroup::withCount('users')->with('unitCategoryRows');
+
+        if ($request->filled('search')) {
+            $search = trim($request->string('search'));
+            $query->where('nama', 'like', "%{$search}%");
+        }
+
+        $groups = $query->orderBy('nama')->paginate(10)->withQueryString();
 
         return view('technical-groups.index', ['groups' => $groups]);
     }

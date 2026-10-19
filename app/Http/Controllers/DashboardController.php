@@ -41,6 +41,17 @@ class DashboardController extends Controller
             abort_unless($units->contains('id', $requestedUnit->id), 403);
 
             $selectedUnit = $requestedUnit->load('dvrs.cameras');
+        } elseif (! $user->isSuperadmin() && $units->isNotEmpty() && ! $request->boolean('select_unit')) {
+            $lastUnitId = session('last_selected_unit_id');
+            $selectedUnit = ($lastUnitId && $units->contains('id', $lastUnitId))
+                ? $units->firstWhere('id', $lastUnitId)
+                : $units->first();
+
+            $selectedUnit = $selectedUnit->load('dvrs.cameras');
+        }
+
+        if ($selectedUnit !== null) {
+            session(['last_selected_unit_id' => $selectedUnit->id]);
         }
 
         $cameraKategoris = $selectedUnit
@@ -68,6 +79,8 @@ class DashboardController extends Controller
             ->pluck('camera_id')
             ->all();
 
+        $justLoggedIn = (bool) $request->session()->pull('just_logged_in', false);
+
         return view('dashboard.index', [
             'units' => $units,
             'selectedUnit' => $selectedUnit,
@@ -76,6 +89,7 @@ class DashboardController extends Controller
             'recordingCameraIds' => $recordingCameraIds,
             'kategori' => $kategori,
             'cameraKategoris' => $cameraKategoris,
+            'justLoggedIn' => $justLoggedIn,
         ]);
     }
 }

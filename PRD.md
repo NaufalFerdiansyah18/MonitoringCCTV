@@ -21,22 +21,26 @@ Sistem yang dibangun harus:
 | **Superadmin** | Semua unit; kelola masterdata (Unit/DVR/Camera); kelola user & grup teknis; liveview semua unit. |
 | **Teknis** | **Liveview saja** (tanpa menambah/mengubah data), dibatasi ke unit sesuai **Grup Teknis**-nya. |
 
-### 2.1 Grup Teknis (fleksibel)
-- Masterdata yang dikelola superadmin, berisi `nama` bebas (contoh: `tekpol`, `tanaman`, `listrik`, `mekanik`, dst.) dan relasi banyak-ke-banyak ke **kategori unit** (`kebun`/`pks`/`ro`).
-- User teknis cukup **dipilihkan satu Grup Teknis** → otomatis mendapat akses ke semua unit dengan kategori yang terhubung ke grup tersebut.
-- Menambah tipe teknis baru = **buat grup baru, tanpa ubah kode**.
-- *(Opsional, untuk kapan-kapan)* pivot `user_units` untuk menyesuaikan unit spesifik di luar kategori grup.
-
-Contoh: grup **"tanaman"** terkait kategori `kebun` → seluruh user di grup itu hanya melihat unit kategori `kebun`.
+### 2.1 Struktur Pengguna & Hak Akses
+1. **Kantor Regional**:
+   - **IT (Superadmin)**: Akses penuh seluruh unit (total 38 unit) dan master data.
+   - **Bagian Regional**:
+     - **Tanaman**: Akses ke seluruh unit kategori **Kebun** (20 unit).
+     - **Tekpol**: Akses ke seluruh unit kategori **PKS** (12 unit).
+     - **PMO**: Akses ke seluruh unit kategori **Biogas** (6 unit).
+2. **User Unit (38 Akun)**:
+   - 20 User Unit Kebun (akses unit kebun).
+   - 12 User Unit PKS (akses unit PKS).
+   - 6 User Unit Biogas (akses unit Biogas).
 
 ## 3. Master Data
 
-### 3.1 Unit
+### 3.1 Unit (Total 38 Unit)
 | Kolom | Tipe | Ket |
 |---|---|---|
-| `kode` | string, unik | contoh `U1`, `U2`, `U3` |
-| `nama` | string | Unit 1 / Unit 2 / Unit 3 |
-| `kategori` | enum | `kebun` ¦ `pks` ¦ `ro` |
+| `kode` | string, unik | contoh `KBN-01`, `PKS-01`, `BGS-01` |
+| `nama` | string | Kebun 01-20, PKS 01-12, Biogas 01-06 |
+| `kategori` | string | `kebun` (20 unit) ¦ `pks` (12 unit) ¦ `biogas` (6 unit) |
 
 ### 3.2 DVR (1 DVR menampung 8–16 kamera)
 | Kolom | Tipe | Ket |

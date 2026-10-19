@@ -207,7 +207,7 @@ class AuthRbacTest extends TestCase
     {
         $kebun = Unit::factory()->create(['kategori' => 'kebun', 'nama' => 'Kebun Satu']);
         Unit::factory()->create(['kategori' => 'pks', 'nama' => 'Pabrik Satu']);
-        Unit::factory()->create(['kategori' => 'ro', 'nama' => 'RO Satu']);
+        Unit::factory()->create(['kategori' => 'biogas', 'nama' => 'Biogas Satu']);
 
         $group = TechnicalGroup::factory()->create();
         TechnicalGroupUnitCategory::create(['technical_group_id' => $group->id, 'kategori' => 'kebun']);
@@ -218,14 +218,14 @@ class AuthRbacTest extends TestCase
             ->assertOk()
             ->assertSee('Kebun Satu')
             ->assertDontSee('Pabrik Satu')
-            ->assertDontSee('RO Satu');
+            ->assertDontSee('Biogas Satu');
     }
 
     public function test_superadmin_dashboard_shows_all_units(): void
     {
         Unit::factory()->state(['kategori' => 'kebun', 'nama' => 'Kebun Satu'])->create();
         Unit::factory()->state(['kategori' => 'pks', 'nama' => 'Pabrik Satu'])->create();
-        Unit::factory()->state(['kategori' => 'ro', 'nama' => 'RO Satu'])->create();
+        Unit::factory()->state(['kategori' => 'biogas', 'nama' => 'Biogas Satu'])->create();
 
         $admin = User::factory()->superadmin()->create();
 
@@ -234,6 +234,62 @@ class AuthRbacTest extends TestCase
             ->assertOk()
             ->assertSee('Kebun Satu')
             ->assertSee('Pabrik Satu')
-            ->assertSee('RO Satu');
+            ->assertSee('Biogas Satu');
+    }
+
+    public function test_logout_works_via_get_and_post_for_both_auth_and_guest(): void
+    {
+        $user = User::factory()->superadmin()->create();
+
+        // Acting as user, logout via POST
+        $this->actingAs($user)
+            ->post(route('logout'))
+            ->assertRedirect(route('login'));
+        $this->assertGuest();
+
+        // Acting as user, logout via GET
+        $this->actingAs($user)
+            ->get(route('logout'))
+            ->assertRedirect(route('login'));
+        $this->assertGuest();
+
+        // As guest (expired session) hitting logout via POST and GET
+        $this->post(route('logout'))->assertRedirect(route('login'));
+        $this->get(route('logout'))->assertRedirect(route('login'));
+    }
+
+    public function test_superadmin_can_filter_and_search_users(): void
+    {
+        $admin = User::factory()->superadmin()->create(['name' => 'Super Admin Boss', 'email' => 'boss@example.com']);
+        $user1 = User::factory()->create(['name' => 'Operator PKS Satu', 'email' => 'pks1@example.com', 'role' => 'teknis']);
+        $user2 = User::factory()->create(['name' => 'Operator Biogas Dua', 'email' => 'biogas2@example.com', 'role' => 'teknis']);
+
+        // Search by name
+        $this->actingAs($admin)
+            ->get(route('admin.users.index', ['search' => 'Biogas']))
+            ->assertOk()
+            ->assertSee('Operator Biogas Dua')
+            ->assertDontSee('Operator PKS Satu');
+
+        // Filter by role
+        $this->actingAs($admin)
+            ->get(route('admin.users.index', ['role' => 'superadmin']))
+            ->assertOk()
+            ->assertSee('Super Admin Boss')
+            ->assertDontSee('Operator PKS Satu');
+    }
+
+    public function test_superadmin_can_search_technical_groups(): void
+    {
+        $admin = User::factory()->superadmin()->create();
+        TechnicalGroup::factory()->create(['nama' => 'Teknik Pabrik PKS']);
+        TechnicalGroup::factory()->create(['nama' => 'Pembangkit Biogas']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.technical-groups.index', ['search' => 'Biogas']))
+            ->assertOk()
+            ->assertSee('Pembangkit Biogas')
+            ->assertDontSee('Teknik Pabrik PKS');
     }
 }
+

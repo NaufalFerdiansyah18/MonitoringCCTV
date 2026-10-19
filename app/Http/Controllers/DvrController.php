@@ -14,6 +14,15 @@ class DvrController extends Controller
     {
         $query = Dvr::with(['unit', 'cameras']);
 
+        if ($request->filled('search')) {
+            $search = trim($request->string('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('nama', 'like', "%{$search}%")
+                  ->orWhere('ip_local', 'like', "%{$search}%")
+                  ->orWhere('ip_public', 'like', "%{$search}%");
+            });
+        }
+
         if ($request->filled('unit')) {
             $query->where('unit_id', $request->integer('unit'));
         }

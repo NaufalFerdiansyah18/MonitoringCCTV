@@ -31,40 +31,40 @@ class CctvConfirmationTest extends TestCase
         ]);
     }
 
-    public function test_teknis_group_can_use_ro_category(): void
+    public function test_teknis_group_can_use_biogas_category(): void
     {
         $admin = $this->admin();
 
         $this->actingAs($admin)
-            ->post(route('admin.technical-groups.store'), ['nama' => 'grup-ro', 'kategoris' => ['ro']])
+            ->post(route('admin.technical-groups.store'), ['nama' => 'grup-biogas', 'kategoris' => ['biogas']])
             ->assertRedirect(route('admin.technical-groups.index'));
 
-        $this->assertDatabaseHas('technical_groups', ['nama' => 'grup-ro']);
-        $group = TechnicalGroup::where('nama', 'grup-ro')->firstOrFail();
-        $this->assertSame(['ro'], $group->allowedUnitCategories()->all());
+        $this->assertDatabaseHas('technical_groups', ['nama' => 'grup-biogas']);
+        $group = TechnicalGroup::where('nama', 'grup-biogas')->firstOrFail();
+        $this->assertSame(['biogas'], $group->allowedUnitCategories()->all());
 
         $this->actingAs($admin)
-            ->put(route('admin.technical-groups.update', $group), ['nama' => 'grup-ro', 'kategoris' => ['kebun', 'ro']])
+            ->put(route('admin.technical-groups.update', $group), ['nama' => 'grup-biogas', 'kategoris' => ['kebun', 'biogas']])
             ->assertRedirect(route('admin.technical-groups.index'));
 
         $group->refresh();
-        $this->assertSame(['kebun', 'ro'], $group->allowedUnitCategories()->all());
+        $this->assertEqualsCanonicalizing(['kebun', 'biogas'], $group->allowedUnitCategories()->all());
     }
 
-    public function test_group_form_shows_ro_category(): void
+    public function test_group_form_shows_biogas_category(): void
     {
         $this->actingAs($this->admin())
             ->get(route('admin.technical-groups.create'))
             ->assertOk()
             ->assertSee('Kebun')
-            ->assertSee('value="ro"', false);
+            ->assertSee('value="biogas"', false);
     }
 
-    public function test_superadmin_still_has_ro_in_allowed_categories(): void
+    public function test_superadmin_has_all_unit_categories_in_allowed_categories(): void
     {
         $admin = $this->admin();
 
-        $this->assertSame(['kebun', 'pks', 'ro', 'biogas'], $admin->allowedUnitCategories()->all());
+        $this->assertSame(['kebun', 'pks', 'biogas'], $admin->allowedUnitCategories()->all());
     }
 
     public function test_liveview_start_uses_grid_subtype_by_default(): void

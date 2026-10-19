@@ -11,11 +11,15 @@ class TechnicalGroupSeeder extends Seeder
     public function run(): void
     {
         $groups = [
-            'kebun' => ['kebun'],
-            'ro' => ['ro'],
-            'biogas' => ['biogas'],
+            'Tanaman' => ['kebun'],
+            'Tekpol' => ['pks'],
+            'PMO' => ['biogas'],
             'tanaman' => ['kebun'],
             'tekpol' => ['pks'],
+            'pmo' => ['biogas'],
+            'kebun' => ['kebun'],
+            'pks' => ['pks'],
+            'biogas' => ['biogas'],
         ];
 
         foreach ($groups as $nama => $kategoris) {

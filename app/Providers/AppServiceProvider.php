@@ -22,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Pagination\Paginator::defaultView('pagination.custom');
+        \Illuminate\Pagination\Paginator::defaultSimpleView('pagination.custom');
+
         View::composer('layouts.app', function ($view) {
             $user = Auth::user();
 

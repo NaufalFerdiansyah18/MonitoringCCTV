@@ -229,4 +229,62 @@ class LiveviewTest extends TestCase
             ->assertSee('Kamera Satu')
             ->assertDontSee('Kamera Dua');
     }
+
+    public function test_pks_and_biogas_accounts_auto_select_unit_and_render_autostart_on_login(): void
+    {
+        // 1. Uji akun PKS
+        $groupPks = TechnicalGroup::factory()->create(['nama' => 'PKS']);
+        TechnicalGroupUnitCategory::create(['technical_group_id' => $groupPks->id, 'kategori' => 'pks']);
+        $userPks = User::factory()->withTechnicalGroup($groupPks)->create([
+            'email' => 'pks@cctv.local',
+            'role' => User::ROLE_TEKNIS,
+        ]);
+        $unitPks1 = Unit::factory()->create(['kategori' => 'pks', 'nama' => 'PKS Sei Galuh']);
+        $cameraPks = $this->cameraOn($unitPks1);
+
+        $loginResponse = $this->post(route('login'), [
+            'email' => 'pks@cctv.local',
+            'password' => 'password',
+        ]);
+        $loginResponse->assertRedirect(route('dashboard'));
+
+        $dashboardResponse = $this->actingAs($userPks)->get(route('dashboard'));
+        $dashboardResponse->assertOk()
+            ->assertViewHas('selectedUnit', fn ($u) => $u && $u->id === $unitPks1->id)
+            ->assertSee('PKS Sei Galuh')
+            ->assertSee('Gerbang')
+            ->assertSee('startAllStreams();', false);
+
+        // 2. Uji akun Biogas
+        $groupBiogas = TechnicalGroup::factory()->create(['nama' => 'Biogas']);
+        TechnicalGroupUnitCategory::create(['technical_group_id' => $groupBiogas->id, 'kategori' => 'biogas']);
+        $userBiogas = User::factory()->withTechnicalGroup($groupBiogas)->create([
+            'email' => 'biogas@cctv.local',
+            'role' => User::ROLE_TEKNIS,
+        ]);
+        $unitBiogas1 = Unit::factory()->create(['kategori' => 'biogas', 'nama' => 'Biogas Plant Tandun']);
+        $this->cameraOn($unitBiogas1);
+
+        $this->actingAs($userBiogas)->get(route('dashboard'))
+            ->assertOk()
+            ->assertViewHas('selectedUnit', fn ($u) => $u && $u->id === $unitBiogas1->id)
+            ->assertSee('Biogas Plant Tandun')
+            ->assertSee('startAllStreams();', false);
+    }
+
+    public function test_teknis_can_request_card_list_with_select_unit_param(): void
+    {
+        $group = TechnicalGroup::factory()->create(['nama' => 'PKS']);
+        TechnicalGroupUnitCategory::create(['technical_group_id' => $group->id, 'kategori' => 'pks']);
+        $user = User::factory()->withTechnicalGroup($group)->create();
+        Unit::factory()->create(['kategori' => 'pks', 'nama' => 'PKS Unit Satu']);
+        Unit::factory()->create(['kategori' => 'pks', 'nama' => 'PKS Unit Dua']);
+
+        $this->actingAs($user)
+            ->get(route('dashboard', ['select_unit' => 1]))
+            ->assertOk()
+            ->assertViewHas('selectedUnit', null)
+            ->assertSee('PKS Unit Satu')
+            ->assertSee('PKS Unit Dua');
+    }
 }

@@ -53,6 +53,16 @@
             color: #b91c1c; font-size: 13px; margin-bottom: 14px;
             background: #fee2e2; border: 1px solid #fecaca; padding: 10px 14px; border-radius: 8px;
         }
+
+        .warning-text {
+            color: #92400e; font-size: 13px; margin-bottom: 14px;
+            background: #fef3c7; border: 1px solid #fde68a; padding: 10px 14px; border-radius: 8px;
+        }
+
+        .info-text {
+            color: #1e40af; font-size: 13px; margin-bottom: 14px;
+            background: #dbeafe; border: 1px solid #bfdbfe; padding: 10px 14px; border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -60,6 +70,14 @@
         @csrf
         <h1>CCTV Monitoring</h1>
         <p class="subtitle">Masuk untuk mengakses monitoring CCTV.</p>
+
+        @if (session('warning'))
+            <div class="warning-text">{{ session('warning') }}</div>
+        @endif
+
+        @if (session('info'))
+            <div class="info-text">{{ session('info') }}</div>
+        @endif
 
         @error('email')
             <div class="error-text">{{ $message }}</div>
